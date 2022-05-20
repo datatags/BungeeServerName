@@ -10,7 +10,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteArrayDataInput;
@@ -21,34 +20,36 @@ public class BungeeServerName extends JavaPlugin implements PluginMessageListene
 	private static final String BUNGEE_CHANNEL = "BungeeCord";
 	private String serverName;
 	private boolean usingCache = true;
-	public void onEnable() {
-		saveDefaultConfig();
+
+	@Override
+    public void onEnable() {
 		getConfig().addDefault("serverName", "");
+		getConfig().options().copyDefaults(true);
+		saveConfig();
+
 		serverName = getConfig().getString("serverName");
 		getServer().getMessenger().registerIncomingPluginChannel(this, BUNGEE_CHANNEL, this);
 		getServer().getMessenger().registerOutgoingPluginChannel(this, BUNGEE_CHANNEL);
 		getServer().getPluginManager().registerEvents(this, this);
 		new BungeeServerNamePlaceholder(this).register();
 	}
+
 	@EventHandler
 	public void onJoin(PlayerJoinEvent e) {
 		if (!usingCache) return;
-		new BukkitRunnable() {
-			@Override
-			public void run() {
-				sendServerMessage(e.getPlayer());
-			}
-		}.runTaskLater(this, 1);
+		Bukkit.getScheduler().runTaskLater(this, () -> sendServerMessage(e.getPlayer()), 1);
 	}
+
 	private void sendServerMessage(Player player) {
 		ByteArrayDataOutput out = ByteStreams.newDataOutput();
 		out.writeUTF("GetServer");
 		player.sendPluginMessage(BungeeServerName.this, BUNGEE_CHANNEL, out.toByteArray());
 	}
+
 	@Override
 	public void onPluginMessageReceived(String channel, Player player, byte[] data) {
 		if (!usingCache) return;
-		if (!channel.equals("BungeeCord")) return;
+		if (!channel.equals(BUNGEE_CHANNEL)) return;
 		ByteArrayDataInput in = ByteStreams.newDataInput(data);
 		String subchannel = in.readUTF();
 		if (!subchannel.equals("GetServer")) return;
@@ -57,16 +58,20 @@ public class BungeeServerName extends JavaPlugin implements PluginMessageListene
 		saveConfig();
 		usingCache = false;
 	}
+
 	public String getServerName() {
 		return serverName;
 	}
-	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+
+	@Override
+    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if (cmd.getName().equals("servername")) {
 			sender.sendMessage(ChatColor.YELLOW + "Updated since server start: " + (usingCache ? ChatColor.RED + "no" : ChatColor.GREEN + "yes") + ChatColor.YELLOW + ", current value: '" + ChatColor.AQUA + serverName + ChatColor.YELLOW + "'");
 			return true;
 		}
 		// cmd is updateservername
 		Player player;
+		// Forces re-check
 		usingCache = true;
 		if (sender instanceof Player) {
 			player = (Player) sender;

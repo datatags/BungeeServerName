@@ -5,10 +5,11 @@ import org.bukkit.OfflinePlayer;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 
 public class BungeeServerNamePlaceholder extends PlaceholderExpansion {
-	private BungeeServerName main;
+	private final BungeeServerName main;
 	public BungeeServerNamePlaceholder(BungeeServerName main) {
 		this.main = main;
 	}
+
 	@Override
 	public String getAuthor() {
 		return main.getDescription().getAuthors().get(0);
